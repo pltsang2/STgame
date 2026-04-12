@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>水果二選一</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* 視覺設計：使用 CSS 變數來控制客製化顏色與大小 */
+        :root {
+            --img-size: 400px; /* 預設圖片最大寬度 */
+            --bg-color: #000000; /* 預設背景色 */
+            --text-color: #FFFFFF; /* 預設文字與邊框色 */
+            --highlight-color: #FFFF00; /* 強調色(提示、答錯等) */
+            --success-color: #00FF00; /* 成功色 */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: "Microsoft JhengHei", "PingFang HK", sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh; /* 鎖定螢幕高度 */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 絕對禁止出現捲軸 */
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* 標題區 (固定高度) */
+        header {
+            text-align: center;
+            padding: 10px 0;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            font-size: 50px;
+            color: var(--highlight-color);
+            margin: 0;
+            letter-spacing: 5px;
+        }
+
+        /* 右上角設定按鈕 */
+        #settings-btn {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 35px;
+            background: rgba(128, 128, 128, 0.3);
+            border: 3px solid var(--text-color);
+            color: var(--text-color);
+            border-radius: 15px;
+            padding: 10px 20px;
+            cursor: pointer;
+            z-index: 100;
+        }
+
+        /* 提示文字區 (固定高度) */
+        #prompt-area {
+            text-align: center;
+            font-size: 60px;
+            margin-top: 5px;
+            min-height: 80px;
+            color: var(--success-color);
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        /* =========================================
+           選項按鈕區：終極自適應排版 (保證不捲動)
+           ========================================= */
+        #options-container {
+            display: flex;
+            flex-direction: row; /* 強制水平排列 */
+            justify-content: center;
+            align-items: stretch; /* 讓按鈕高度一致 */
+            flex-grow: 1; /* 填滿剩下的所有空間 */
+            padding: 20px;
+            box-sizing: border-box;
+            gap: 3vw; /* 使用畫面比例作為間距 */
+            overflow: hidden; /* 確保內容超出時直接隱藏捲軸 */
+        }
+
+        .option-btn {
+            background-color: rgba(128, 128, 128, 0.1); /* 微微透出背景色 */
+            border: 8px solid var(--text-color);
+            border-radius: 30px;
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, opacity 0.3s, border-color 0.3s;
+            box-sizing: border-box;
+            
+            /* 關鍵：讓按鈕可以彈性縮小，且不超過設定的最大寬度 */
+            flex: 1 1 0;
+            max-width: var(--img-size);
+            min-width: 0; /* 防止子元素撐爆 Flex 容器 */
+            min-height: 0;
+        }
+
+        .option-btn:active {
+            transform: scale(0.95);
+            border-color: var(--highlight-color);
+        }
+
+        /* 真實圖片 (保證比例正確且不撐破畫面) */
+        .fruit-img {
+            width: 100%; /* 寬度填滿按鈕 */
+            height: 100%; /* 高度填滿可用空間 */
+            max-height: calc(100vh - 350px); /* 預留標題與文字的空間 */
+            object-fit: contain; /* 圖片等比例縮放，完整顯示不裁切 */
+            background-color: #FFFFFF; /* 統一加上白底圖卡感 */
+            border-radius: 15px;
+            border: 2px solid #555;
+            margin-bottom: 15px;
+            min-height: 0; /* 讓 flex 能夠縮小它 */
+        }
+
+        /* 水果文字 */
+        .fruit-text {
+            font-size: min(60px, 6vw); /* 文字會隨螢幕大小微調，最大60px */
+            color: var(--text-color);
+            font-weight: bold;
+            letter-spacing: 3px;
+            flex-shrink: 0;
+            text-align: center;
+        }
+
+        .hide-text .fruit-text {
+            display: none;
+        }
+
+        /* =========================================
+           設定面板 (Modal)
+           ========================================= */
+        #settings-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 200;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 40px;
+            overflow-y: auto;
+            font-size: 35px;
+        }
+
+        .setting-section {
+            background: #222;
+            border: 3px solid #555;
+            border-radius: 20px;
+            padding: 20px 40px;
+            margin-bottom: 20px;
+            width: 85%;
+            max-width: 900px;
+        }
+
+        .setting-row {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .setting-row label {
+            color: #FFFF00;
+            font-weight: bold;
+        }
+
+        .setting-row select, .setting-row input[type="color"] {
+            font-size: 35px;
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        /* 顏色選擇器放大 */
+        input[type="color"] {
+            width: 80px;
+            height: 60px;
+            border: none;
+            border-radius: 10px;
+        }
+
+        /* 水果種類選擇區塊 (Grid排版) */
+        .fruit-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+            margin-top: 15px;
+        }
+
+        .fruit-checkboxes label {
+            color: #FFF;
+            font-size: 35px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .fruit-checkboxes input {
+            transform: scale(1.8);
+            margin-right: 20px;
+        }
+
+        #save-settings-btn {
+            margin: 20px 0 50px 0;
+            font-size: 50px;
+            padding: 20px 60px;
+            background-color: #00FF00;
+            color: #000;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* 開始遊戲遮罩 */
+        #start-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000;
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #start-btn {
+            font-size: 80px;
+            padding: 40px 80px;
+            background-color: #FFFF00;
+            color: #000;
+            border: none;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 0 30px rgba(255, 255, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="show-text">
+
+    <div id="start-screen">
+        <button id="start-btn" onclick="startGame()">開始遊戲</button>
+    </div>
+
+    <div id="settings-modal">
+        <h2 style="color:#FFF; font-size: 50px; margin-top:0;">遊戲設定</h2>
+        
+        <div class="setting-section">
+            <div class="setting-row">
+                <label>背景顏色：</label>
+                <input type="color" id="setting-bg-color" value="#000000">
+            </div>
+            <div class="setting-row">
+                <label>文字及邊框顏色：</label>
+                <input type="color" id="setting-text-color" value="#FFFFFF">
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <div class="setting-row">
+                <label>圖片大小上限：</label>
+                <select id="setting-size">
+                    <option value="300px">大 (300px)</option>
+                    <option value="450px" selected>極大 (450px)</option>
+                    <option value="1000px">無限大 (自動塞滿畫面)</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>選擇數量：</label>
+                <select id="setting-count">
+                    <option value="1">一選一 (無錯誤學習)</option>
+                    <option value="2" selected>二選一</option>
+                    <option value="3">三選一</option>
+                </select>
+            </div>
+            <div class="setting-row" style="justify-content: flex-start; gap: 40px;">
+                <label>顯示文字：</label>
+                <input type="checkbox" id="setting-text" checked style="transform: scale(2);">
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <label style="color: #FFFF00; font-weight: bold; font-size: 40px;">選擇出現的水果 (可複選)：</label>
+            <div class="fruit-checkboxes" id="fruit-checkbox-container">
+                </div>
+        </div>
+
+        <button id="save-settings-btn" onclick="saveSettings()">儲存並關閉</button>
+    </div>
+
+    <header>
+        <h1 id="game-title">水果二選一</h1>
+        <button id="settings-btn" onclick="openSettings()">⚙️ 設定</button>
+    </header>
+
+    <div id="prompt-area"></div>
+
+    <div id="options-container">
+        </div>
+
+    <script>
+        // 穩定的 Unsplash 圖庫，並加入了 emoji 作為防死圖的備用方案
+        const allFruitsDB = [
+            { id: "f1", name: "蘋果", emoji: "🍎", img: "https://images.unsplash.com/photo-1560806887-1e4cd0b6faa6?w=600&q=80" },
+            { id: "f2", name: "香蕉", emoji: "🍌", img: "https://images.unsplash.com/photo-1528825871115-3581a5387919?w=600&q=80" },
+            { id: "f3", name: "橙", emoji: "🍊", img: "https://images.unsplash.com/photo-1582979512210-99b6a53386f9?w=600&q=80" },
+            { id: "f4", name: "提子", emoji: "🍇", img: "https://images.unsplash.com/photo-1537432376769-00f5c2f4c8d2?w=600&q=80" },
+            { id: "f5", name: "西瓜", emoji: "🍉", img: "https://images.unsplash.com/photo-1581504643573-9c8695094251?w=600&q=80" },
+            { id: "f6", name: "士多啤梨", emoji: "🍓", img: "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=600&q=80" },
+            { id: "f7", name: "芒果", emoji: "🥭", img: "https://images.unsplash.com/photo-1553279768-865429fd81ce?w=600&q=80" },
+            { id: "f8", name: "菠蘿", emoji: "🍍", img: "https://images.unsplash.com/photo-1550258987-190a2d41a8ba?w=600&q=80" },
+            { id: "f9", name: "桃", emoji: "🍑", img: "https://images.unsplash.com/photo-1528821128474-27f963b062bf?w=600&q=80" },
+            { id: "f10", name: "奇異果", emoji: "🥝", img: "https://images.unsplash.com/photo-1585059895524-72359e06138a?w=600&q=80" }
+        ];
+
+        let activeFruitsDB = [...allFruitsDB]; 
+        let currentTarget = null;
+        let isProcessing = false;
+        let audioCtx;
+
+        // 啟動畫面與初始化
+        function startGame() {
+            document.getElementById("start-screen").style.display = "none";
+            initCheckboxes();
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const wakeVoice = new SpeechSynthesisUtterance("");
+            window.speechSynthesis.speak(wakeVoice);
+            saveSettings(); 
+        }
+
+        // 初始化核取方塊
+        function initCheckboxes() {
+            const container = document.getElementById("fruit-checkbox-container");
+            container.innerHTML = "";
+            allFruitsDB.forEach(fruit => {
+                container.innerHTML += `
+                    <label>
+                        <input type="checkbox" value="${fruit.id}" class="fruit-cb" checked>
+                        ${fruit.name}
+                    </label>
+                `;
+            });
+        }
+
+        function openSettings() {
+            document.getElementById("settings-modal").style.display = "flex";
+        }
+
+        // 儲存設定並套用顏色/大小
+        function saveSettings() {
+            const choiceCount = parseInt(document.getElementById("setting-count").value);
+            const checkboxes = document.querySelectorAll('.fruit-cb:checked');
+            
+            if (checkboxes.length < choiceCount) {
+                alert(`溫馨提示：你設定了「${choiceCount}選一」，請至少在下方勾選 ${choiceCount} 種水果！`);
+                return;
+            }
+
+            // 更新背景色與文字色 (寫入 CSS 變數)
+            const bgColor = document.getElementById("setting-bg-color").value;
+            const textColor = document.getElementById("setting-text-color").value;
+            document.documentElement.style.setProperty('--bg-color', bgColor);
+            document.documentElement.style.setProperty('--text-color', textColor);
+
+            // 更新題庫
+            const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+            activeFruitsDB = allFruitsDB.filter(f => selectedIds.includes(f.id));
+
+            // 更新圖片大小限制
+            const size = document.getElementById("setting-size").value;
+            document.documentElement.style.setProperty('--img-size', size);
+            
+            // 更新文字顯示與否
+            const showText = document.getElementById("setting-text").checked;
+            if (showText) {
+                document.body.classList.remove('hide-text');
+            } else {
+                document.body.classList.add('hide-text');
+            }
+
+            // 更新標題顯示 (根據選擇數量)
+            const titleMap = {1: "水果配對 (一選一)", 2: "水果二選一", 3: "水果三選一"};
+            document.getElementById("game-title").innerText = titleMap[choiceCount];
+            
+            document.getElementById("settings-modal").style.display = "none";
+            generateQuestion(); 
+        }
+
+        // 產生題目
+        function generateQuestion() {
+            if (isProcessing) return;
+            document.getElementById("prompt-area").innerText = "";
+            document.getElementById("prompt-area").style.color = "var(--success-color)";
+
+            const choiceCount = parseInt(document.getElementById("setting-count").value);
+            let shuffledDB = [...activeFruitsDB].sort(() => 0.5 - Math.random());
+            
+            currentTarget = shuffledDB[0];
+            let options = shuffledDB.slice(0, choiceCount).sort(() => 0.5 - Math.random());
+
+            renderOptions(options);
+
+            setTimeout(() => {
+                speakPrompt(`我想食${currentTarget.name}，邊個係${currentTarget.name}啊？`);
+            }, 500);
+        }
+
+        // 渲染畫面上的按鈕
+        function renderOptions(options) {
+            const container = document.getElementById("options-container");
+            container.innerHTML = "";
+
+            options.forEach(fruit => {
+                const btn = document.createElement("div");
+                btn.className = "option-btn";
+                btn.onclick = () => checkAnswer(fruit, btn);
+                
+                // 圖片加了 onerror 防死圖機制：若圖片失效，自動將背景轉為超大 Emoji
+                btn.innerHTML = `
+                    <img src="${fruit.img}" alt="${fruit.name}" class="fruit-img" draggable="false" 
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div style="display:none; width:100%; height:100%; align-items:center; justify-content:center; font-size:150px; background:#FFF; border-radius:15px; margin-bottom:15px; border: 2px solid #555;">${fruit.emoji}</div>
+                    <div class="fruit-text">${fruit.name}</div>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        // 語音引擎
+        function speakPrompt(text, callback) {
+            window.speechSynthesis.cancel(); 
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-HK'; 
+            utterance.rate = 0.8; 
+            utterance.pitch = 1.1; 
+            if(callback) utterance.onend = callback;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // 檢查答案
+        function checkAnswer(selectedFruit, btnElement) {
+            if (isProcessing) return;
+
+            const promptArea = document.getElementById("prompt-area");
+
+            if (selectedFruit.id === currentTarget.id) {
+                isProcessing = true;
+                promptArea.innerText = "答啱啦！";
+                promptArea.style.color = "var(--success-color)";
+                btnElement.style.borderColor = "var(--success-color)";
+                
+                triggerFirework();
+                playEatingSound();
+                speakPrompt(`啱啦！好好味！`);
+
+                setTimeout(() => {
+                    isProcessing = false;
+                    generateQuestion();
+                }, 2500);
+
+            } else {
+                promptArea.innerText = "再試一下";
+                promptArea.style.color = "var(--highlight-color)";
+                
+                btnElement.style.opacity = "0.2";
+                btnElement.onclick = null; 
+                
+                speakPrompt(`再試一下`);
+            }
+        }
+
+        // 模擬進食聲音
+        function playEatingSound() {
+            if (!audioCtx) return;
+
+            function createCrunch(timeOffset) {
+                const bufferSize = audioCtx.sampleRate * 0.15;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const bandpass = audioCtx.createBiquadFilter();
+                bandpass.type = 'bandpass';
+                bandpass.frequency.value = 1200;
+
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(1, audioCtx.currentTime + timeOffset);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + timeOffset + 0.15);
+
+                noise.connect(bandpass);
+                bandpass.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                noise.start(audioCtx.currentTime + timeOffset);
+            }
+
+            createCrunch(0); createCrunch(0.2); createCrunch(0.4);
+        }
+
+        // 煙火特效
+        function triggerFirework() {
+            var duration = 1500;
+            var end = Date.now() + duration;
+
+            (function frame() {
+                confetti({ particleCount: 8, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#FFFF00', '#00FF00', '#FFFFFF'] });
+                confetti({ particleCount: 8, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#FFFF00', '#00FF00', '#FFFFFF'] });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+    </script>
+</body>
+</html>
