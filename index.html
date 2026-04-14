@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="水果配對">
@@ -11,251 +10,69 @@
     <title>水果二選一</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        /* =========================================
-           視覺設計：主題變數
-           ========================================= */
-        :root {
-            --img-size: 400px;
-        }
-
-        /* 黑底白字 (高對比深色主題) */
+        :root { --img-size: 400px; }
         body.theme-dark {
-            --bg-color: #000000;
-            --text-color: #FFFFFF;
-            --border-color: #FFFFFF;
-            --btn-bg: rgba(128, 128, 128, 0.15);
-            --highlight-color: #FFFF00; 
-            --success-color: #00FF00;
+            --bg-color: #000000; --text-color: #FFFFFF; --border-color: #FFFFFF;
+            --btn-bg: rgba(128, 128, 128, 0.15); --highlight-color: #FFFF00; --success-color: #00FF00;
         }
-
-        /* 白底黑字 (標準主題) */
         body.theme-light {
-            --bg-color: #FFFFFF;
-            --text-color: #000000;
-            --border-color: #000000;
-            --btn-bg: #F5F5F5;
-            --highlight-color: #D32F2F; 
-            --success-color: #2E7D32; 
+            --bg-color: #FFFFFF; --text-color: #000000; --border-color: #000000;
+            --btn-bg: #F5F5F5; --highlight-color: #D32F2F; --success-color: #2E7D32; 
         }
-
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            background-color: var(--bg-color); color: var(--text-color);
             font-family: "Microsoft JhengHei", "PingFang HK", sans-serif;
-            margin: 0;
-            padding: 0;
-            height: 100vh; /* 鎖定螢幕高度 */
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* 絕對禁止滑動 */
-            transition: background-color 0.3s, color 0.3s;
-            /* 防止選取文字造成干擾 */
-            user-select: none; 
-            -webkit-user-select: none;
+            margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column;
+            overflow: hidden; transition: background-color 0.3s, color 0.3s;
+            user-select: none; -webkit-user-select: none;
         }
-
-        header {
-            text-align: center;
-            padding: 15px 0 5px 0;
-            position: relative;
-            flex-shrink: 0;
-        }
-
-        h1 {
-            font-size: 45px;
-            color: var(--highlight-color);
-            margin: 0;
-            letter-spacing: 5px;
-        }
-
+        header { text-align: center; padding: 15px 0 5px 0; position: relative; flex-shrink: 0; }
+        h1 { font-size: 45px; color: var(--highlight-color); margin: 0; letter-spacing: 5px; }
         #settings-btn {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 30px;
-            background: var(--bg-color);
-            border: 3px solid var(--border-color);
-            color: var(--text-color);
-            border-radius: 15px;
-            padding: 10px 20px;
-            cursor: pointer;
-            z-index: 100;
+            position: absolute; top: 15px; right: 20px; font-size: 30px; background: var(--bg-color);
+            border: 3px solid var(--border-color); color: var(--text-color); border-radius: 15px;
+            padding: 10px 20px; cursor: pointer; z-index: 100;
         }
-
         #prompt-area {
-            text-align: center;
-            font-size: 60px;
-            margin-top: 5px;
-            min-height: 80px;
-            color: var(--success-color);
-            font-weight: bold;
-            flex-shrink: 0;
+            text-align: center; font-size: 60px; margin-top: 5px; min-height: 80px;
+            color: var(--success-color); font-weight: bold; flex-shrink: 0;
         }
-
-        /* 選項按鈕區：終極自適應 */
         #options-container {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            align-items: stretch;
-            flex-grow: 1;
-            padding: 15px 30px 30px 30px;
-            box-sizing: border-box;
-            gap: 4vw; 
-            overflow: hidden;
+            display: flex; flex-direction: row; justify-content: center; align-items: stretch;
+            flex-grow: 1; padding: 15px 30px 30px 30px; box-sizing: border-box; gap: 4vw; overflow: hidden;
         }
-
         .option-btn {
-            background-color: var(--btn-bg);
-            border: 8px solid var(--border-color);
-            border-radius: 30px;
-            padding: 15px;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s, opacity 0.3s, border-color 0.3s;
-            box-sizing: border-box;
-            flex: 1 1 0; /* 彈性縮小 */
-            max-width: var(--img-size);
-            min-width: 0;
-            min-height: 0;
+            background-color: var(--btn-bg); border: 8px solid var(--border-color); border-radius: 30px;
+            padding: 15px; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; transition: transform 0.2s, opacity 0.3s, border-color 0.3s;
+            box-sizing: border-box; flex: 1 1 0; max-width: var(--img-size); min-width: 0; min-height: 0;
         }
-
-        .option-btn:active {
-            transform: scale(0.95);
-            border-color: var(--highlight-color);
-        }
-
+        .option-btn:active { transform: scale(0.95); border-color: var(--highlight-color); }
         .fruit-img {
-            width: 100%; 
-            height: 100%; 
-            max-height: calc(100vh - 300px);
-            object-fit: contain;
-            background-color: #FFFFFF; /* 統一白底圖卡感 */
-            border-radius: 15px;
-            border: 2px solid #555;
-            margin-bottom: 15px;
-            min-height: 0;
+            width: 100%; height: 100%; max-height: calc(100vh - 300px); object-fit: contain;
+            background-color: #FFFFFF; border-radius: 15px; border: 2px solid #555; margin-bottom: 15px; min-height: 0;
         }
-
-        .fruit-text {
-            font-size: min(55px, 6vw);
-            color: var(--text-color);
-            font-weight: bold;
-            letter-spacing: 3px;
-            flex-shrink: 0;
-            text-align: center;
-        }
-
-        .hide-text .fruit-text {
-            display: none;
-        }
-
-        /* 設定面板 */
+        .fruit-text { font-size: min(55px, 6vw); color: var(--text-color); font-weight: bold; letter-spacing: 3px; flex-shrink: 0; text-align: center; }
+        .hide-text .fruit-text { display: none; }
         #settings-modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.98);
-            color: #FFFFFF;
-            z-index: 200;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            padding-top: 40px;
-            overflow-y: auto;
-            font-size: 30px;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.98); color: #FFFFFF; z-index: 200; flex-direction: column;
+            align-items: center; justify-content: flex-start; padding-top: 40px; overflow-y: auto; font-size: 30px;
         }
-
-        .setting-section {
-            background: #222;
-            border: 3px solid #555;
-            border-radius: 20px;
-            padding: 20px 40px;
-            margin-bottom: 20px;
-            width: 85%;
-            max-width: 900px;
-        }
-
-        .setting-row {
-            margin: 15px 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .setting-row label {
-            color: #FFFF00;
-            font-weight: bold;
-        }
-
-        .setting-row select, .setting-row input[type="file"] {
-            font-size: 30px;
-            padding: 5px;
-            cursor: pointer;
-            max-width: 50%;
-        }
-
-        .fruit-checkboxes {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 15px;
-        }
-
-        .fruit-checkboxes label {
-            color: #FFF;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-        }
-        
-        .fruit-checkboxes input[type="checkbox"] {
-            transform: scale(2);
-            margin-right: 20px;
-        }
-
+        .setting-section { background: #222; border: 3px solid #555; border-radius: 20px; padding: 20px 40px; margin-bottom: 20px; width: 85%; max-width: 900px; }
+        .setting-row { margin: 15px 0; display: flex; align-items: center; justify-content: space-between; }
+        .setting-row label { color: #FFFF00; font-weight: bold; }
+        .setting-row select, .setting-row input[type="file"] { font-size: 30px; padding: 5px; cursor: pointer; max-width: 50%; }
+        .fruit-checkboxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 15px; }
+        .fruit-checkboxes label { color: #FFF; display: flex; align-items: center; cursor: pointer; }
+        .fruit-checkboxes input[type="checkbox"] { transform: scale(2); margin-right: 20px; }
         .upload-section { margin-top: 20px; border-top: 2px solid #555; padding-top: 15px; }
         .upload-row { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
         .fruit-thumbnail { width: 80px; height: 80px; background-color: #FFF; border: 2px solid #555; border-radius: 10px; object-fit: contain; }
         .clear-upload-btn { font-size: 25px; padding: 5px 15px; background-color: #D32F2F; color: white; border: none; border-radius: 5px; cursor: pointer; }
-
-        #save-settings-btn {
-            margin: 20px 0 50px 0;
-            font-size: 45px;
-            padding: 20px 60px;
-            background-color: #00FF00;
-            color: #000;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        /* 啟動畫面 */
-        #start-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #000;
-            z-index: 300;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #start-btn {
-            font-size: 80px;
-            padding: 40px 80px;
-            background-color: #FFFF00;
-            color: #000;
-            border: none;
-            border-radius: 40px;
-            cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0 0 30px rgba(255, 255, 0, 0.5);
-        }
+        #save-settings-btn { margin: 20px 0 50px 0; font-size: 45px; padding: 20px 60px; background-color: #00FF00; color: #000; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000; z-index: 300; display: flex; align-items: center; justify-content: center; }
+        #start-btn { font-size: 80px; padding: 40px 80px; background-color: #FFFF00; color: #000; border: none; border-radius: 40px; cursor: pointer; font-weight: bold; box-shadow: 0 0 30px rgba(255, 255, 0, 0.5); }
     </style>
 </head>
 <body class="show-text theme-dark">
@@ -320,9 +137,6 @@
     <div id="options-container"></div>
 
     <script>
-        // =========================================
-        // 語音引擎：自動尋找進階人聲
-        // =========================================
         let preferredVoice = null;
 
         function initBestVoice() {
@@ -330,7 +144,6 @@
             let hkVoices = voices.filter(v => v.lang === 'zh-HK' || v.lang.includes('zh-HK'));
             
             if (hkVoices.length > 0) {
-                // 優先尋找 Premium, Enhanced 或 倩兒(Sin-Ji)
                 preferredVoice = hkVoices.find(v => 
                     v.name.includes('Premium') || 
                     v.name.includes('Enhanced') || 
@@ -339,7 +152,6 @@
                 ) || hkVoices[0];
             }
         }
-        // 監聽語音載入完成事件
         window.speechSynthesis.onvoiceschanged = initBestVoice;
 
         function speakPrompt(text, callback) {
@@ -354,12 +166,11 @@
         }
 
         // =========================================
-        // 題庫與在地儲存
+        // 【已修正】完美支援 Emoji 的預設圖卡生成器
         // =========================================
-        
-        // 使用輕量化的 SVG 圖卡作為預設防死圖備案
         function getSvgPlaceholder(emoji) {
-            return `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="100%" height="100%" fill="#FFFFFF"/><text x="50%" y="55%" font-size="200" text-anchor="middle" dominant-baseline="middle">${emoji}</text></svg>`)}`;
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="100%" height="100%" fill="#FFFFFF"/><text x="50%" y="55%" font-size="200" text-anchor="middle" dominant-baseline="middle">${emoji}</text></svg>`;
+            return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
         }
 
         const allFruitsDB = [
@@ -397,10 +208,6 @@
                 alert("圖片體積過大，無法儲存。請復原部分圖片或上傳壓縮過的小檔案。");
             }
         }
-
-        // =========================================
-        // 遊戲流程控制
-        // =========================================
 
         function startGame() {
             document.getElementById("start-screen").style.display = "none";
